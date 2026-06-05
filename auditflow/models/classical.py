@@ -15,8 +15,8 @@ Provides a factory-pattern ModelTrainer that supports:
 import time
 import numpy as np
 import pandas as pd
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
 
 from sklearn.linear_model import LogisticRegression, Ridge, Lasso, ElasticNet
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
@@ -24,40 +24,52 @@ from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegress
 from sklearn.svm import SVC, SVR
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
-from sklearn.model_selection import cross_val_score, train_test_split
+from sklearn.model_selection import cross_val_score
 from sklearn.metrics import (
-    accuracy_score, f1_score, precision_score, recall_score,
-    mean_squared_error, mean_absolute_error, r2_score,
+    accuracy_score,
+    f1_score,
+    precision_score,
+    recall_score,
+    mean_squared_error,
+    mean_absolute_error,
+    r2_score,
 )
 
 from auditflow.core.logger import get_logger
-
 
 # ── Model Factory ────────────────────────────────────────────
 
 MODEL_REGISTRY = {
     "classification": {
-        "logistic":  lambda **kw: LogisticRegression(max_iter=1000, **kw),
-        "rf":        lambda **kw: RandomForestClassifier(n_estimators=100, random_state=42, **kw),
-        "gbm":       lambda **kw: GradientBoostingClassifier(n_estimators=100, random_state=42, **kw),
-        "svm":       lambda **kw: SVC(probability=True, random_state=42, **kw),
-        "dt":        lambda **kw: DecisionTreeClassifier(random_state=42, **kw),
-        "knn":       lambda **kw: KNeighborsClassifier(**kw),
+        "logistic": lambda **kw: LogisticRegression(max_iter=1000, **kw),
+        "rf": lambda **kw: RandomForestClassifier(
+            n_estimators=100, random_state=42, **kw
+        ),
+        "gbm": lambda **kw: GradientBoostingClassifier(
+            n_estimators=100, random_state=42, **kw
+        ),
+        "svm": lambda **kw: SVC(probability=True, random_state=42, **kw),
+        "dt": lambda **kw: DecisionTreeClassifier(random_state=42, **kw),
+        "knn": lambda **kw: KNeighborsClassifier(**kw),
     },
     "regression": {
-        "ridge":     lambda **kw: Ridge(**kw),
-        "lasso":     lambda **kw: Lasso(**kw),
+        "ridge": lambda **kw: Ridge(**kw),
+        "lasso": lambda **kw: Lasso(**kw),
         "elasticnet": lambda **kw: ElasticNet(**kw),
-        "rf":        lambda **kw: RandomForestRegressor(n_estimators=100, random_state=42, **kw),
-        "gbm":       lambda **kw: GradientBoostingRegressor(n_estimators=100, random_state=42, **kw),
-        "svm":       lambda **kw: SVR(**kw),
-        "dt":        lambda **kw: DecisionTreeRegressor(random_state=42, **kw),
-        "knn":       lambda **kw: KNeighborsRegressor(**kw),
+        "rf": lambda **kw: RandomForestRegressor(
+            n_estimators=100, random_state=42, **kw
+        ),
+        "gbm": lambda **kw: GradientBoostingRegressor(
+            n_estimators=100, random_state=42, **kw
+        ),
+        "svm": lambda **kw: SVR(**kw),
+        "dt": lambda **kw: DecisionTreeRegressor(random_state=42, **kw),
+        "knn": lambda **kw: KNeighborsRegressor(**kw),
     },
 }
 
 
-def get_model(name: str, task: str = "classification", **kwargs) -> Any:
+def get_model(name: str, task: str = "classification", **kwargs: Any) -> Any:
     """
     Factory function to create a scikit-learn model by short name.
 
@@ -74,8 +86,7 @@ def get_model(name: str, task: str = "classification", **kwargs) -> Any:
     if name not in registry:
         available = list(registry.keys())
         raise ValueError(
-            f"Unknown model '{name}' for task='{task}'. "
-            f"Available: {available}"
+            f"Unknown model '{name}' for task='{task}'. " f"Available: {available}"
         )
     return registry[name](**kwargs)
 
@@ -83,6 +94,7 @@ def get_model(name: str, task: str = "classification", **kwargs) -> Any:
 @dataclass
 class ModelResult:
     """Container for a single model's training results."""
+
     model_name: str
     model: Any
     task: str
@@ -124,7 +136,7 @@ class ModelTrainer:
         X_test: pd.DataFrame,
         y_test: pd.Series,
         model_name: str = "rf",
-        model_kwargs: Optional[Dict] = None,
+        model_kwargs: Optional[Dict[str, Any]] = None,
     ) -> ModelResult:
         """
         Train a single model with cross-validation and full metrics.
@@ -142,8 +154,11 @@ class ModelTrainer:
         # Cross-validation
         start = time.time()
         cv_scores = cross_val_score(
-            model, X_train, y_train,
-            cv=self.cv_folds, scoring=scoring,
+            model,
+            X_train,
+            y_train,
+            cv=self.cv_folds,
+            scoring=scoring,
         ).tolist()
 
         # Fit on full training set
@@ -160,9 +175,16 @@ class ModelTrainer:
             avg = "binary" if len(np.unique(y_train)) == 2 else "weighted"
             test_metrics = {
                 "accuracy": round(test_score, 4),
-                "precision": round(precision_score(y_test, y_test_pred, average=avg, zero_division=0), 4),
-                "recall": round(recall_score(y_test, y_test_pred, average=avg, zero_division=0), 4),
-                "f1": round(f1_score(y_test, y_test_pred, average=avg, zero_division=0), 4),
+                "precision": round(
+                    precision_score(y_test, y_test_pred, average=avg, zero_division=0),
+                    4,
+                ),
+                "recall": round(
+                    recall_score(y_test, y_test_pred, average=avg, zero_division=0), 4
+                ),
+                "f1": round(
+                    f1_score(y_test, y_test_pred, average=avg, zero_division=0), 4
+                ),
             }
         else:
             train_score = r2_score(y_train, y_train_pred)
@@ -206,9 +228,9 @@ class ModelTrainer:
             module="models.classical",
             action=f"train_{model_name}",
             rationale=f"Trained {model_name} ({self.task}). "
-                      f"CV score: {cv_mean:.4f} ±{cv_std:.4f} ({self.cv_folds}-fold). "
-                      f"Test score: {test_score:.4f}. "
-                      f"Training time: {train_time:.2f}s.{overfit_note}",
+            f"CV score: {cv_mean:.4f} ±{cv_std:.4f} ({self.cv_folds}-fold). "
+            f"Test score: {test_score:.4f}. "
+            f"Training time: {train_time:.2f}s.{overfit_note}",
             details={
                 "model": model_name,
                 "task": self.task,
@@ -232,15 +254,15 @@ class ModelTrainer:
         y_train: pd.Series,
         X_test: pd.DataFrame,
         y_test: pd.Series,
-        models: List[str] = None,
-        model_kwargs: Optional[Dict[str, Dict]] = None,
+        models: Optional[List[str]] = None,
+        model_kwargs: Optional[Dict[str, Dict[str, Any]]] = None,
     ) -> pd.DataFrame:
         """
         Train and compare multiple models.
 
         Parameters
         ----------
-        models       : List of model names to compare (default: all available).
+        models       : List[Any] of model names to compare (default: all available).
         model_kwargs : {model_name: {param: value}} per-model hyperparameters.
 
         Returns
@@ -254,8 +276,14 @@ class ModelTrainer:
         for name in models:
             kwargs = model_kwargs.get(name, {})
             try:
-                self.train(X_train, y_train, X_test, y_test,
-                           model_name=name, model_kwargs=kwargs)
+                self.train(
+                    X_train,
+                    y_train,
+                    X_test,
+                    y_test,
+                    model_name=name,
+                    model_kwargs=kwargs,
+                )
             except Exception as e:
                 audit.log_decision(
                     module="models.classical",
@@ -284,8 +312,8 @@ class ModelTrainer:
             module="models.classical",
             action="compare_models",
             rationale=f"Compared {len(models)} models. Best: {best['model']} "
-                      f"(test score={best['test_score']:.4f}). "
-                      f"Runner-up: {comparison.iloc[1]['model'] if len(comparison) > 1 else 'N/A'}.",
+            f"(test score={best['test_score']:.4f}). "
+            f"Runner-up: {comparison.iloc[1]['model'] if len(comparison) > 1 else 'N/A'}.",
             details={
                 "models_compared": models,
                 "best_model": best["model"],

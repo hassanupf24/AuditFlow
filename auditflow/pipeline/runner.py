@@ -18,19 +18,22 @@ from typing import Any, Dict, List, Optional
 
 from sklearn.model_selection import train_test_split
 
-from auditflow.core.logger import AuditLogger, get_logger
+from auditflow.core.logger import get_logger
 from auditflow.core.config import PipelineConfig
 from auditflow.core.registry import TransformerRegistry
+from auditflow.core.cache import RedisCache
+import concurrent.futures
 
 
 @dataclass
 class PipelineResult:
     """Container for all pipeline outputs."""
+
     df_raw: Optional[pd.DataFrame] = None
     df_clean: Optional[pd.DataFrame] = None
     df_featured: Optional[pd.DataFrame] = None
-    profile: Optional[Dict] = None
-    model_results: Optional[List] = field(default_factory=list)
+    profile: Optional[Dict[str, Any]] = None
+    model_results: Optional[List[Any]] = field(default_factory=list)
     comparison: Optional[pd.DataFrame] = None
     best_model: Optional[Any] = None
     report_path: Optional[str] = None
@@ -54,10 +57,16 @@ class Pipeline:
         result = Pipeline(config).run()
     """
 
-    def __init__(self, config: PipelineConfig):
+    def __init__(self, config: PipelineConfig, job_id: Optional[str] = None):
         self.config = config
         self.audit = get_logger()
         self.registry = TransformerRegistry()
+        self.job_id = job_id
+        self.cache = RedisCache() if job_id else None
+
+    def _update_status(self, status: str, progress: str = "") -> None:
+        if self.cache and self.job_id:
+            self.cache.set_pipeline_status(self.job_id, status, progress)
 
     @classmethod
     def from_yaml(cls, filepath: str) -> "Pipeline":
@@ -93,7 +102,7 @@ class Pipeline:
             module="pipeline.runner",
             action="pipeline_start",
             rationale=f"Starting AuditFlow pipeline. Data source: {cfg.data.source}. "
-                      f"Target: {cfg.model.target}. Task: {cfg.model.task}.",
+            f"Target: {cfg.model.target}. Task: {cfg.model.task}.",
             details={
                 "source": cfg.data.source,
                 "target": cfg.model.target,
@@ -101,53 +110,72 @@ class Pipeline:
             },
         )
 
-        # ── Step 1: Load ─────────────────────────────────────
-        with self.audit.track("Data Loading"):
-            df = self._load_data()
-            result.df_raw = df.copy()
+        try:
+            self._update_status("RUNNING", "Starting Pipeline")
+            # ── Step 1: Load ─────────────────────────────────────
+            self._update_status("RUNNING", "Data Loading")
+            with self.audit.track("Data Loading"):
+                df = self._load_data()
+                result.df_raw = df.copy()
 
-        # ── Step 2: Clean ────────────────────────────────────
-        with self.audit.track("Data Cleaning"):
-            df = self._clean_data(df)
-            result.df_clean = df.copy()
+            # ── Step 2: Clean ────────────────────────────────────
+            self._update_status("RUNNING", "Data Cleaning")
+            with self.audit.track("Data Cleaning"):
+                df = self._clean_data(df)
+                result.df_clean = df.copy()
 
-        # ── Step 3: Profile ──────────────────────────────────
-        with self.audit.track("Exploratory Data Analysis"):
-            result.profile = self._profile_data(df)
+            # ── Step 3: Profile (Asynchronous) ───────────────────
+            # Profiling is read-only and computationally heavy, so run it in a separate thread.
+            executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+            profile_future = executor.submit(self._profile_data, df.copy())
 
-        # ── Step 4: Feature Engineering ──────────────────────
-        with self.audit.track("Feature Engineering"):
-            df = self._engineer_features(df)
-            result.df_featured = df.copy()
+            # ── Step 4: Feature Engineering ──────────────────────
+            self._update_status("RUNNING", "Feature Engineering")
+            with self.audit.track("Feature Engineering"):
+                df = self._engineer_features(df)
+                result.df_featured = df.copy()
 
-        # ── Step 5-7: Split, Train, Evaluate ─────────────────
-        if cfg.model.target and cfg.model.target in df.columns:
-            with self.audit.track("Model Training & Evaluation"):
-                comparison, model_results, best = self._train_and_evaluate(df)
-                result.comparison = comparison
-                result.model_results = model_results
-                result.best_model = best
+            # ── Step 5-7: Split, Train, Evaluate ─────────────────
+            if cfg.model.target and cfg.model.target in df.columns:
+                self._update_status("RUNNING", "Model Training & Evaluation")
+                with self.audit.track("Model Training & Evaluation"):
+                    comparison, model_results, best = self._train_and_evaluate(df)
+                    result.comparison = comparison
+                    result.model_results = model_results
+                    result.best_model = best
 
-        # ── Step 8: Report ───────────────────────────────────
-        with self.audit.track("Report Generation"):
-            report_path = self.audit.generate_report(
-                output_path=cfg.report.output,
-                title=cfg.report.title,
-                show_audit_trail=cfg.report.include_audit_trail,
-            )
-            result.report_path = report_path
+            # Wait for profile to complete before generating the report
+            self._update_status("RUNNING", "Exploratory Data Analysis")
+            with self.audit.track("Exploratory Data Analysis"):
+                result.profile = profile_future.result()
+            executor.shutdown()
 
-            # Also export JSON audit trail
-            from auditflow.pipeline.audit import AuditTrail
-            trail = AuditTrail(self.audit)
-            json_path = str(Path(cfg.report.output).with_suffix(".audit.json"))
-            trail.export_json(json_path)
-            result.audit_json_path = json_path
+            # ── Step 8: Report ───────────────────────────────────
+            self._update_status("RUNNING", "Report Generation")
+            with self.audit.track("Report Generation"):
+                report_path = self.audit.generate_report(
+                    output_path=cfg.report.output,
+                    title=cfg.report.title,
+                    show_audit_trail=cfg.report.include_audit_trail,
+                )
+                result.report_path = report_path
 
-        print(f"\n✅ Pipeline complete! Report saved to: {report_path}")
-        print(self.audit.summary())
+                # Also export JSON audit trail
+                from auditflow.pipeline.audit import AuditTrail
 
-        return result
+                trail = AuditTrail(self.audit)
+                json_path = str(Path(cfg.report.output).with_suffix(".audit.json"))
+                trail.export_json(json_path)
+                result.audit_json_path = json_path
+
+            print(f"\n✅ Pipeline complete! Report saved to: {report_path}")
+            print(self.audit.summary())
+            
+            self._update_status("SUCCESS", "Pipeline Complete")
+            return result
+        except Exception as e:
+            self._update_status("FAILED", f"Error: {str(e)}")
+            raise e
 
     # ── Private step methods ─────────────────────────────────
 
@@ -160,15 +188,19 @@ class Pipeline:
 
         if fmt == "csv":
             return load_csv(
-                cfg.source, sep=cfg.sep, encoding=cfg.encoding,
+                cfg.source,
+                sep=cfg.sep,
+                encoding=cfg.encoding,
                 parse_dates=cfg.date_columns or None,
             )
         elif fmt == "excel":
             return load_excel(cfg.source, sheet_name=cfg.sheet_name)
         elif fmt == "api":
             from auditflow.loaders import load_from_api
+
             return load_from_api(
-                cfg.source, headers=cfg.api_headers,
+                cfg.source,
+                headers=cfg.api_headers,
                 data_key=cfg.api_data_key,
             )
         else:
@@ -195,23 +227,27 @@ class Pipeline:
             multiplier = outlier_cfg.get("multiplier", 1.5)
             columns = outlier_cfg.get("columns")
             df = handle_outliers(
-                df, method=method, iqr_multiplier=multiplier,
+                df,
+                method=method,
+                iqr_multiplier=multiplier,
                 columns=columns,
             )
 
         # Text cleaning
         if cfg.text_columns:
             from auditflow.cleaners import clean_text
+
             df = clean_text(df, columns=cfg.text_columns, **cfg.text_options)
 
         return df
 
-    def _profile_data(self, df: pd.DataFrame) -> Dict:
+    def _profile_data(self, df: pd.DataFrame) -> Dict[str, Any]:
         """Profile data and generate visualizations."""
         from auditflow.eda import profile, plot_distributions, plot_correlations
         from auditflow.eda import plot_class_balance, plot_missing_map
 
         import matplotlib
+
         matplotlib.use("Agg")  # Non-interactive backend for pipeline
 
         target = self.config.model.target
@@ -220,27 +256,44 @@ class Pipeline:
         # Generate key visualizations
         try:
             plot_distributions(df)
-        except Exception:
-            pass
+        except Exception as e:
+            self.audit.log_decision(
+                module="pipeline.runner",
+                action="plot_error",
+                rationale=f"Failed to plot distributions: {e}",
+            )
 
         try:
             plot_correlations(df)
-        except Exception:
-            pass
+        except Exception as e:
+            self.audit.log_decision(
+                module="pipeline.runner",
+                action="plot_error",
+                rationale=f"Failed to plot correlations: {e}",
+            )
 
         if target and target in df.columns:
             try:
                 plot_class_balance(df, target)
-            except Exception:
-                pass
+            except Exception as e:
+                self.audit.log_decision(
+                    module="pipeline.runner",
+                    action="plot_error",
+                    rationale=f"Failed to plot class balance: {e}",
+                )
 
         if df.isnull().sum().sum() > 0:
             try:
                 plot_missing_map(df)
-            except Exception:
-                pass
+            except Exception as e:
+                self.audit.log_decision(
+                    module="pipeline.runner",
+                    action="plot_error",
+                    rationale=f"Failed to plot missing map: {e}",
+                )
 
         import matplotlib.pyplot as plt
+
         plt.close("all")
 
         return prof
@@ -248,7 +301,9 @@ class Pipeline:
     def _engineer_features(self, df: pd.DataFrame) -> pd.DataFrame:
         """Engineer features based on config."""
         from auditflow.features import (
-            expand_datetime, add_interactions, encode_categoricals, scale,
+            expand_datetime,
+            add_interactions,
+            encode_categoricals,
         )
 
         cfg = self.config.features
@@ -262,7 +317,8 @@ class Pipeline:
         # Interaction features
         if cfg.interactions:
             valid_pairs = [
-                (a, b) for a, b in cfg.interactions
+                (a, b)
+                for a, b in cfg.interactions
                 if a in df.columns and b in df.columns
             ]
             if valid_pairs:
@@ -279,7 +335,8 @@ class Pipeline:
         else:
             # Auto one-hot encode remaining object columns (except target)
             obj_cols = [
-                c for c in df.select_dtypes(include=["object", "category"]).columns
+                c
+                for c in df.select_dtypes(include=["object", "category"]).columns
                 if c != target
             ]
             if obj_cols:
@@ -287,15 +344,20 @@ class Pipeline:
 
         return df
 
-    def _train_and_evaluate(self, df: pd.DataFrame):
+    def _train_and_evaluate(self, df: pd.DataFrame) -> Any:
         """Split, train, evaluate, and explain models."""
-        from auditflow.models import ModelTrainer, explain_model, plot_feature_importance
+        from auditflow.models import (
+            ModelTrainer,
+            explain_model,
+            plot_feature_importance,
+        )
         from auditflow.evaluation import (
-            evaluate_classification, evaluate_regression,
-            plot_confusion_matrix, plot_roc_curve,
+            plot_confusion_matrix,
+            plot_roc_curve,
         )
 
         import matplotlib
+
         matplotlib.use("Agg")
 
         cfg = self.config.model
@@ -313,7 +375,10 @@ class Pipeline:
 
         # Split
         X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=cfg.test_size, random_state=cfg.random_state,
+            X,
+            y,
+            test_size=cfg.test_size,
+            random_state=cfg.random_state,
             stratify=y if cfg.task == "classification" else None,
         )
 
@@ -321,8 +386,8 @@ class Pipeline:
             module="pipeline.runner",
             action="train_test_split",
             rationale=f"Split data: {len(X_train)} train / {len(X_test)} test "
-                      f"({cfg.test_size:.0%} test). "
-                      f"{'Stratified by target.' if cfg.task == 'classification' else ''}",
+            f"({cfg.test_size:.0%} test). "
+            f"{'Stratified by target.' if cfg.task == 'classification' else ''}",
             details={
                 "train_size": len(X_train),
                 "test_size": len(X_test),
@@ -333,7 +398,10 @@ class Pipeline:
         # Train and compare
         trainer = ModelTrainer(task=cfg.task, cv_folds=cfg.cv_folds)
         comparison = trainer.compare(
-            X_train, y_train, X_test, y_test,
+            X_train,
+            y_train,
+            X_test,
+            y_test,
             models=cfg.models,
             model_kwargs=cfg.model_kwargs,
         )
@@ -365,10 +433,15 @@ class Pipeline:
                         y_prob = best_result.model.predict_proba(X_test)
                         if len(np.unique(y_test)) == 2:
                             plot_roc_curve(y_test, y_prob)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        self.audit.log_decision(
+                            module="pipeline.runner",
+                            action="plot_error",
+                            rationale=f"Failed to plot ROC curve: {e}",
+                        )
 
         import matplotlib.pyplot as plt
+
         plt.close("all")
 
         return comparison, trainer.results, best_result

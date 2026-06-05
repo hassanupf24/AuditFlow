@@ -37,13 +37,21 @@ dependencies = [
     "jinja2>=3.1",
     "requests>=2.28",
     "openpyxl>=3.0",
+    "fastapi>=0.100",
+    "uvicorn>=0.23",
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0",
+    "redis>=4.5.0",
+    "opentelemetry-api>=1.20.0",
+    "opentelemetry-sdk>=1.20.0",
+    "opentelemetry-instrumentation-fastapi>=0.40b0",
 ]
 
 [project.optional-dependencies]
 nlp = ["sentence-transformers>=2.2"]
 images = ["Pillow>=9.0"]
 all = ["sentence-transformers>=2.2", "Pillow>=9.0"]
-dev = ["pytest>=7.0", "pytest-cov>=4.0"]
+dev = ["pytest>=7.0", "pytest-cov>=4.0", "mypy>=1.0", "black>=23.0", "ruff>=0.0.280", "bandit>=1.7.5"]
 
 [project.urls]
 Homepage = "https://github.com/hassangasim/auditflow"
@@ -56,3 +64,15 @@ include = ["auditflow*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+
+[tool.mypy]
+strict = true
+ignore_missing_imports = true
+
+[tool.black]
+line-length = 88
+target-version = ["py39"]
+
+[tool.ruff]
+line-length = 88
+select = ["E", "F", "I"]

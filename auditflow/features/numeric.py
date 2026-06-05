@@ -6,7 +6,10 @@
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import (
-    StandardScaler, MinMaxScaler, PolynomialFeatures, LabelEncoder,
+    StandardScaler,
+    MinMaxScaler,
+    PolynomialFeatures,
+    LabelEncoder,
 )
 from typing import Dict, List, Optional, Tuple
 
@@ -56,8 +59,8 @@ def scale(
         module="features.numeric",
         action=f"scale_{method}",
         rationale=f"Applied {method} scaling to {len(target_cols)} columns. "
-                  f"{'Z-score normalization (mean=0, std=1)' if method == 'standard' else 'Min-max rescaling to [0, 1]'}. "
-                  f"Scaling ensures features contribute equally to distance-based algorithms.",
+        f"{'Z-score normalization (mean=0, std=1)' if method == 'standard' else 'Min-max rescaling to [0, 1]'}. "
+        f"Scaling ensures features contribute equally to distance-based algorithms.",
         details={"method": method, "columns": target_cols},
     )
 
@@ -67,14 +70,14 @@ def scale(
 def add_interactions(
     df: pd.DataFrame,
     pairs: List[Tuple[str, str]],
-    operations: List[str] = None,
+    operations: Optional[List[str]] = None,
 ) -> pd.DataFrame:
     """
     Create pairwise interaction features with audit trail.
 
     Parameters
     ----------
-    pairs      : List of (col_a, col_b) tuples.
+    pairs      : List[Any] of (col_a, col_b) tuples.
     operations : Subset of ["multiply", "ratio", "add", "subtract"].
                  Default: ["multiply", "ratio"].
     """
@@ -105,9 +108,13 @@ def add_interactions(
         module="features.numeric",
         action="add_interactions",
         rationale=f"Created {len(new_cols)} interaction features from {len(pairs)} pairs. "
-                  f"Operations: {ops}. Interaction features help linear models capture "
-                  f"nonlinear relationships between variables.",
-        details={"pairs": [list(p) for p in pairs], "operations": ops, "new_columns": new_cols},
+        f"Operations: {ops}. Interaction features help linear models capture "
+        f"nonlinear relationships between variables.",
+        details={
+            "pairs": [list(p) for p in pairs],
+            "operations": ops,
+            "new_columns": new_cols,
+        },
     )
 
     return df
@@ -142,17 +149,15 @@ def add_polynomial(
     # Only keep new features (not the originals)
     new_names = [n for n in feature_names if n not in cols]
     new_indices = [list(feature_names).index(n) for n in new_names]
-    poly_df = pd.DataFrame(
-        X_poly[:, new_indices], columns=new_names, index=df.index
-    )
+    poly_df = pd.DataFrame(X_poly[:, new_indices], columns=new_names, index=df.index)
     df = pd.concat([df, poly_df], axis=1)
 
     audit.log_decision(
         module="features.numeric",
         action="add_polynomial",
         rationale=f"Generated {len(new_names)} polynomial features (degree={degree}) "
-                  f"from {len(cols)} input columns. "
-                  f"{'Inputs were standardized first to prevent overflow.' if scale_first else ''}",
+        f"from {len(cols)} input columns. "
+        f"{'Inputs were standardized first to prevent overflow.' if scale_first else ''}",
         details={
             "input_columns": cols,
             "degree": degree,
@@ -193,7 +198,7 @@ def encode_categoricals(
             action="encode_ordinal",
             column=col,
             rationale=f"Ordinal encoded '{col}' using order: {order}. "
-                      f"Preserves the natural ranking between categories.",
+            f"Preserves the natural ranking between categories.",
             details={"column": col, "order": order},
         )
 
@@ -206,22 +211,28 @@ def encode_categoricals(
             module="features.numeric",
             action="encode_onehot",
             rationale=f"One-hot encoded {len(ohe_cols)} columns, creating {len(new_cols)} "
-                      f"binary features. drop_first={drop_first} to avoid the dummy variable trap.",
-            details={"source_columns": ohe_cols, "new_columns": new_cols, "drop_first": drop_first},
+            f"binary features. drop_first={drop_first} to avoid the dummy variable trap.",
+            details={
+                "source_columns": ohe_cols,
+                "new_columns": new_cols,
+                "drop_first": drop_first,
+            },
         )
 
     # Label encoding
     le = LabelEncoder()
-    for col in (label_encode_cols or []):
+    for col in label_encode_cols or []:
         df[col] = le.fit_transform(df[col].astype(str))
         mapping = dict(zip(le.classes_, le.transform(le.classes_)))
         audit.log_decision(
             module="features.numeric",
             action="encode_label",
             column=col,
-            rationale=f"Label encoded '{col}' to integers. "
-                      f"Mapping: {mapping}.",
-            details={"column": col, "mapping": {str(k): int(v) for k, v in mapping.items()}},
+            rationale=f"Label encoded '{col}' to integers. " f"Mapping: {mapping}.",
+            details={
+                "column": col,
+                "mapping": {str(k): int(v) for k, v in mapping.items()},
+            },
         )
 
     return df

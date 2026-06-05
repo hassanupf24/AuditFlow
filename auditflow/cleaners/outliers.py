@@ -5,7 +5,7 @@
 
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Optional
+from typing import Any, Tuple, Optional, Dict, List, Optional
 
 from auditflow.core.logger import get_logger
 
@@ -16,7 +16,7 @@ def detect_outliers(
     method: str = "iqr",
     iqr_multiplier: float = 1.5,
     z_threshold: float = 3.0,
-) -> Dict[str, Dict]:
+) -> Dict[str, Dict[str, Any]]:
     """
     Detect outliers and return a diagnostic report.
 
@@ -62,7 +62,7 @@ def detect_outliers(
         module="cleaners.outliers",
         action="detect_outliers",
         rationale=f"Scanned {len(target_cols)} numeric columns for outliers using "
-                  f"'{method}' method. Found {total_outliers} total outlier values.",
+        f"'{method}' method. Found {total_outliers} total outlier values.",
         details={
             "method": method,
             "columns_scanned": len(target_cols),
@@ -156,7 +156,7 @@ def handle_outliers(
             module="cleaners.outliers",
             action="outlier_none",
             rationale=f"No outliers detected in {len(target_cols)} columns "
-                      f"using IQR method (multiplier={iqr_multiplier}).",
+            f"using IQR method (multiplier={iqr_multiplier}).",
             before_shape=before_shape,
             after_shape=df.shape,
         )

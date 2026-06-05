@@ -15,7 +15,7 @@ auto-detects common issues:
 
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Optional, Any
+from typing import Dict, Optional, Any
 
 from auditflow.core.logger import get_logger
 
@@ -112,9 +112,7 @@ def profile(
     # Alert: multicollinearity
     if len(num_cols) >= 2:
         corr_matrix = result["correlations"]
-        upper = corr_matrix.where(
-            np.triu(np.ones(corr_matrix.shape), k=1).astype(bool)
-        )
+        upper = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool))
         high_pairs = [
             (col_a, col_b, upper.loc[col_a, col_b])
             for col_a in upper.index
@@ -169,9 +167,9 @@ def profile(
         module="eda.profiler",
         action="profile",
         rationale=f"Generated data profile: {df.shape[0]} rows × {df.shape[1]} columns. "
-                  f"{len(num_cols)} numeric, {len(cat_cols)} categorical columns. "
-                  f"{len(missing)} columns with missing values. "
-                  f"{len(alerts)} smart alerts raised.",
+        f"{len(num_cols)} numeric, {len(cat_cols)} categorical columns. "
+        f"{len(missing)} columns with missing values. "
+        f"{len(alerts)} smart alerts raised.",
         details={
             "rows": df.shape[0],
             "columns": df.shape[1],

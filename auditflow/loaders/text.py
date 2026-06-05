@@ -57,7 +57,7 @@ def load_text_corpus(
         module="loaders.text",
         action="load_text_corpus",
         rationale=f"Loaded text corpus from '{filepath}' (format: {fmt}). "
-                  f"{len(df)} samples, columns: {list(df.columns)}.",
+        f"{len(df)} samples, columns: {list(df.columns)}.",
         details={
             "filepath": filepath,
             "format_detected": fmt,

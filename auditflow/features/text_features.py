@@ -6,7 +6,7 @@
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.decomposition import TruncatedSVD
-from typing import Optional, Tuple
+from typing import Any, Tuple, Optional, Optional, Tuple
 
 from auditflow.core.logger import get_logger
 from auditflow.core.registry import TransformerRegistry
@@ -16,7 +16,7 @@ def tfidf_vectorize(
     df: pd.DataFrame,
     text_col: str,
     max_features: int = 5000,
-    ngram_range: tuple = (1, 2),
+    ngram_range: Tuple[Any, ...] = (1, 2),
     min_df: int = 2,
     reduce_dims: Optional[int] = None,
     prefix: str = "tfidf",
@@ -62,9 +62,9 @@ def tfidf_vectorize(
             action="tfidf_vectorize_svd",
             column=text_col,
             rationale=f"Vectorized '{text_col}' with TF-IDF (vocab={vocab_size}, "
-                      f"ngrams={ngram_range}) then reduced to {reduce_dims}D via SVD "
-                      f"(variance explained: {explained:.1%}). SVD compression makes "
-                      f"TF-IDF features compatible with dense models.",
+            f"ngrams={ngram_range}) then reduced to {reduce_dims}D via SVD "
+            f"(variance explained: {explained:.1%}). SVD compression makes "
+            f"TF-IDF features compatible with dense models.",
             details={
                 "vocab_size": vocab_size,
                 "ngram_range": list(ngram_range),
@@ -81,8 +81,8 @@ def tfidf_vectorize(
             action="tfidf_vectorize",
             column=text_col,
             rationale=f"Vectorized '{text_col}' with TF-IDF. Vocabulary size: {vocab_size}, "
-                      f"n-gram range: {ngram_range}. Bigrams capture phrases like "
-                      f"'not good' that unigrams would miss.",
+            f"n-gram range: {ngram_range}. Bigrams capture phrases like "
+            f"'not good' that unigrams would miss.",
             details={
                 "vocab_size": vocab_size,
                 "ngram_range": list(ngram_range),

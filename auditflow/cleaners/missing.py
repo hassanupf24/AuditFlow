@@ -17,10 +17,9 @@ Strategy selection logic (when strategy="auto"):
   - > 40% missing → drop column entirely
 """
 
-import numpy as np
 import pandas as pd
 from sklearn.impute import SimpleImputer, KNNImputer
-from typing import Dict, List, Optional
+from typing import Any, Tuple, Optional, Tuple, List, Optional
 
 from auditflow.core.logger import get_logger
 
@@ -36,11 +35,13 @@ def audit_missing(df: pd.DataFrame) -> pd.DataFrame:
     """
     audit = get_logger()
 
-    report = pd.DataFrame({
-        "dtype": df.dtypes.astype(str),
-        "null_count": df.isnull().sum(),
-        "null_pct": (df.isnull().mean() * 100).round(2),
-    })
+    report = pd.DataFrame(
+        {
+            "dtype": df.dtypes.astype(str),
+            "null_count": df.isnull().sum(),
+            "null_pct": (df.isnull().mean() * 100).round(2),
+        }
+    )
 
     # Add smart recommendations
     recommendations = []
@@ -65,10 +66,13 @@ def audit_missing(df: pd.DataFrame) -> pd.DataFrame:
     audit.log_decision(
         module="cleaners.missing",
         action="audit_missing",
-        rationale=f"Profiled missing values: {len(report)} columns have nulls out of "
-                  f"{len(df.columns)} total. "
-                  f"Highest: {report.index[0]} ({report.iloc[0]['null_pct']}%)"
-                  if len(report) > 0 else "No missing values found.",
+        rationale=(
+            f"Profiled missing values: {len(report)} columns have nulls out of "
+            f"{len(df.columns)} total. "
+            f"Highest: {report.index[0]} ({report.iloc[0]['null_pct']}%)"
+            if len(report) > 0
+            else "No missing values found."
+        ),
         details={
             "columns_with_nulls": len(report),
             "total_columns": len(df.columns),
@@ -79,7 +83,7 @@ def audit_missing(df: pd.DataFrame) -> pd.DataFrame:
     return report
 
 
-def _select_auto_strategy(series: pd.Series, null_pct: float) -> tuple:
+def _select_auto_strategy(series: pd.Series, null_pct: float) -> Tuple[Any, ...]:
     """
     Smart Default Engine: determine the best imputation strategy for a column.
 
@@ -164,7 +168,7 @@ def impute(
             module="cleaners.missing",
             action="impute_drop",
             rationale=f"Dropped {dropped} rows containing NaN in columns: {target_cols}. "
-                      f"Remaining: {len(df)} rows.",
+            f"Remaining: {len(df)} rows.",
             details={"dropped_rows": dropped, "columns": target_cols},
             before_shape=before_shape,
             after_shape=df.shape,
@@ -180,8 +184,8 @@ def impute(
                 module="cleaners.missing",
                 action="impute_knn",
                 rationale=f"Applied KNN imputation (k={knn_neighbors}) to {len(num_cols)} "
-                          f"numeric columns. KNN uses similar rows to estimate missing values, "
-                          f"preserving multivariate relationships.",
+                f"numeric columns. KNN uses similar rows to estimate missing values, "
+                f"preserving multivariate relationships.",
                 details={"k": knn_neighbors, "columns": num_cols},
                 before_shape=before_shape,
                 after_shape=df.shape,
@@ -209,7 +213,9 @@ def impute(
                     before_shape=df.shape,
                 )
             elif auto_strategy in ("mean", "median"):
-                fill_val = df[col].mean() if auto_strategy == "mean" else df[col].median()
+                fill_val = (
+                    df[col].mean() if auto_strategy == "mean" else df[col].median()
+                )
                 df[col] = df[col].fillna(fill_val)
                 audit.log_decision(
                     module="cleaners.missing",

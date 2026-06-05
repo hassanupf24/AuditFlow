@@ -12,7 +12,8 @@ it stores the fitted object here. This enables:
 """
 
 import json
-import pickle
+import threading
+import joblib
 from pathlib import Path
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
@@ -61,8 +62,9 @@ class TransformerRegistry:
         scaler = registry.get("salary_scaler").transformer
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._records: Dict[str, TransformerRecord] = {}
+        self._lock = threading.Lock()
 
     def register(
         self,
@@ -83,21 +85,24 @@ class TransformerRegistry:
         module      : AuditFlow module that created it (e.g. "features.numeric").
         params      : Transformer hyperparameters for documentation.
         """
-        self._records[name] = TransformerRecord(
-            name=name,
-            transformer=transformer,
-            columns=columns,
-            module=module,
-            params=params,
-        )
+        with self._lock:
+            self._records[name] = TransformerRecord(
+                name=name,
+                transformer=transformer,
+                columns=columns,
+                module=module,
+                params=params,
+            )
 
     def get(self, name: str) -> Optional[TransformerRecord]:
         """Retrieve a transformer record by name."""
-        return self._records.get(name)
+        with self._lock:
+            return self._records.get(name)
 
     def list_all(self) -> List[Dict[str, Any]]:
-        """List metadata for all registered transformers."""
-        return [r.to_dict() for r in self._records.values()]
+        """List[Any] metadata for all registered transformers."""
+        with self._lock:
+            return [r.to_dict() for r in self._records.values()]
 
     def save(self, directory: str) -> None:
         """
@@ -111,13 +116,13 @@ class TransformerRegistry:
         out_dir.mkdir(parents=True, exist_ok=True)
 
         metadata = []
-        for name, record in self._records.items():
-            pkl_path = out_dir / f"{name}.pkl"
-            with open(pkl_path, "wb") as f:
-                pickle.dump(record.transformer, f)
-            meta = record.to_dict()
-            meta["pkl_file"] = f"{name}.pkl"
-            metadata.append(meta)
+        with self._lock:
+            for name, record in self._records.items():
+                pkl_path = out_dir / f"{name}.pkl"
+                joblib.dump(record.transformer, pkl_path)
+                meta = record.to_dict()
+                meta["pkl_file"] = f"{name}.pkl"
+                metadata.append(meta)
 
         meta_path = out_dir / "registry_metadata.json"
         meta_path.write_text(
@@ -139,18 +144,19 @@ class TransformerRegistry:
             raise FileNotFoundError(f"No registry found at {meta_path}")
 
         metadata = json.loads(meta_path.read_text(encoding="utf-8"))
-        for meta in metadata:
-            pkl_path = out_dir / meta["pkl_file"]
-            with open(pkl_path, "rb") as f:
-                transformer = pickle.load(f)
-            self._records[meta["name"]] = TransformerRecord(
-                name=meta["name"],
-                transformer=transformer,
-                columns=meta["columns"],
-                module=meta["module"],
-                params=meta.get("params", {}),
-            )
+        with self._lock:
+            for meta in metadata:
+                pkl_path = out_dir / meta["pkl_file"]
+                transformer = joblib.load(pkl_path)
+                self._records[meta["name"]] = TransformerRecord(
+                    name=meta["name"],
+                    transformer=transformer,
+                    columns=meta["columns"],
+                    module=meta["module"],
+                    params=meta.get("params", {}),
+                )
 
     def reset(self) -> None:
         """Clear all records."""
-        self._records.clear()
+        with self._lock:
+            self._records.clear()

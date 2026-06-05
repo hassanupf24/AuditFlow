@@ -11,7 +11,7 @@ with support for JSON and HTML export.
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Any
 
 if TYPE_CHECKING:
     from auditflow.core.logger import AuditLogger
@@ -33,7 +33,7 @@ class AuditTrail:
     def __init__(self, logger: "AuditLogger"):
         self.logger = logger
 
-    def get_timeline(self) -> List[Dict]:
+    def get_timeline(self) -> List[Dict[str, Any]]:
         """
         Return the full audit trail as a list of dicts, grouped by stage.
         """
@@ -55,9 +55,9 @@ class AuditTrail:
 
         return timeline
 
-    def get_stages(self) -> Dict[str, List[Dict]]:
+    def get_stages(self) -> Dict[str, List[Dict[str, Any]]]:
         """Return events organized by pipeline stage."""
-        stages = {}
+        stages: Dict[str, Any] = {}
         for entry in self.get_timeline():
             stage = entry.get("stage", "ungrouped")
             stages.setdefault(stage, []).append(entry)

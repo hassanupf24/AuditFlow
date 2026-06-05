@@ -36,7 +36,7 @@ Example YAML:
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Tuple, Any, Dict, List, Optional, Tuple, Union
 
 import yaml
 
@@ -44,9 +44,10 @@ import yaml
 @dataclass
 class DataConfig:
     """Configuration for data loading."""
+
     source: str = ""
-    format: str = "csv"                          # csv, excel, parquet, api
-    sheet_name: Union[str, int] = 0              # Excel sheet
+    format: str = "csv"  # csv, excel, parquet, api
+    sheet_name: Union[str, int] = 0  # Excel sheet
     encoding: str = "utf-8"
     sep: str = ","
     date_columns: List[str] = field(default_factory=list)
@@ -58,37 +59,45 @@ class DataConfig:
 @dataclass
 class CleaningConfig:
     """Configuration for data cleaning."""
-    missing: Dict[str, Any] = field(default_factory=lambda: {
-        "strategy": "auto",          # auto | mean | median | mode | knn | drop
-        "knn_neighbors": 5,
-    })
-    outliers: Dict[str, Any] = field(default_factory=lambda: {
-        "method": "clip",            # clip | drop | flag | none
-        "multiplier": 1.5,
-        "columns": None,             # None = all numeric
-    })
-    drop_high_null_cols: float = 0.5      # Drop columns with > this % null
-    drop_high_null_rows: float = 0.7      # Drop rows with > this % null
+
+    missing: Dict[str, Any] = field(
+        default_factory=lambda: {
+            "strategy": "auto",  # auto | mean | median | mode | knn | drop
+            "knn_neighbors": 5,
+        }
+    )
+    outliers: Dict[str, Any] = field(
+        default_factory=lambda: {
+            "method": "clip",  # clip | drop | flag | none
+            "multiplier": 1.5,
+            "columns": None,  # None = all numeric
+        }
+    )
+    drop_high_null_cols: float = 0.5  # Drop columns with > this % null
+    drop_high_null_rows: float = 0.7  # Drop rows with > this % null
     text_columns: List[str] = field(default_factory=list)
-    text_options: Dict[str, bool] = field(default_factory=lambda: {
-        "lowercase": True,
-        "remove_html": True,
-        "remove_urls": True,
-        "remove_punctuation": True,
-    })
+    text_options: Dict[str, bool] = field(
+        default_factory=lambda: {
+            "lowercase": True,
+            "remove_html": True,
+            "remove_urls": True,
+            "remove_punctuation": True,
+        }
+    )
 
 
 @dataclass
 class FeatureConfig:
     """Configuration for feature engineering."""
+
     datetime_expand: List[str] = field(default_factory=list)
     cyclical_encoding: bool = True
     interactions: List[Tuple[str, str]] = field(default_factory=list)
     interaction_ops: List[str] = field(default_factory=lambda: ["multiply", "ratio"])
     polynomial_cols: List[str] = field(default_factory=list)
     polynomial_degree: int = 2
-    scale_method: Optional[str] = "standard"     # standard | minmax | None
-    scale_columns: Optional[List[str]] = None    # None = all numeric
+    scale_method: Optional[str] = "standard"  # standard | minmax | None
+    scale_columns: Optional[List[str]] = None  # None = all numeric
     ordinal_cols: Dict[str, List[str]] = field(default_factory=dict)
     ohe_cols: List[str] = field(default_factory=list)
     label_encode_cols: List[str] = field(default_factory=list)
@@ -97,7 +106,8 @@ class FeatureConfig:
 @dataclass
 class ModelConfig:
     """Configuration for model training."""
-    task: str = "classification"                 # classification | regression
+
+    task: str = "classification"  # classification | regression
     target: str = ""
     models: List[str] = field(default_factory=lambda: ["rf"])
     cv_folds: int = 5
@@ -109,6 +119,7 @@ class ModelConfig:
 @dataclass
 class ReportConfig:
     """Configuration for report generation."""
+
     output: str = "auditflow_report.html"
     title: str = "AuditFlow Analysis Report"
     include_audit_trail: bool = True
@@ -123,6 +134,7 @@ class PipelineConfig:
 
     Can be loaded from a YAML file or constructed programmatically.
     """
+
     data: DataConfig = field(default_factory=DataConfig)
     cleaning: CleaningConfig = field(default_factory=CleaningConfig)
     features: FeatureConfig = field(default_factory=FeatureConfig)
@@ -231,16 +243,7 @@ class PipelineConfig:
         """Export the current configuration to a YAML file."""
         import dataclasses
 
-        def _to_dict(obj):
-            if dataclasses.is_dataclass(obj):
-                return {k: _to_dict(v) for k, v in dataclasses.asdict(obj).items()}
-            elif isinstance(obj, list):
-                return [_to_dict(v) for v in obj]
-            elif isinstance(obj, dict):
-                return {k: _to_dict(v) for k, v in obj.items()}
-            return obj
-
-        data = _to_dict(self)
+        data = dataclasses.asdict(self)
         Path(filepath).write_text(
             yaml.dump(data, default_flow_style=False, sort_keys=False),
             encoding="utf-8",

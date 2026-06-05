@@ -39,8 +39,11 @@ import threading
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Tuple, Any, Dict, List, Optional, Tuple, Iterator
 
+from opentelemetry import trace
+
+tracer = trace.get_tracer(__name__)
 
 class AuditEvent:
     """A single logged event in the audit trail."""
@@ -52,8 +55,8 @@ class AuditEvent:
         rationale: str,
         column: Optional[str] = None,
         details: Optional[Dict[str, Any]] = None,
-        before_shape: Optional[tuple] = None,
-        after_shape: Optional[tuple] = None,
+        before_shape: Optional[Tuple[int, ...]] = None,
+        after_shape: Optional[Tuple[int, ...]] = None,
         group: Optional[str] = None,
     ):
         self.timestamp = datetime.now(timezone.utc).isoformat()
@@ -68,7 +71,7 @@ class AuditEvent:
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize to a JSON-compatible dictionary."""
-        d = {
+        d: Dict[str, Any] = {
             "timestamp": self.timestamp,
             "module": self.module,
             "action": self.action,
@@ -99,24 +102,23 @@ class AuditLogger:
     the audit trail that powers the auto-generated report.
     """
 
-    _instance: Optional["AuditLogger"] = None
-    _lock = threading.Lock()
+    _tls = threading.local()
 
-    def __new__(cls, *args, **kwargs):
-        with cls._lock:
-            if cls._instance is None:
-                cls._instance = super().__new__(cls)
-                cls._instance._initialized = False
-            return cls._instance
+    def __new__(cls, *args: Any, **kwargs: Any) -> "AuditLogger":
+        if not hasattr(cls._tls, "instance"):
+            cls._tls.instance = super().__new__(cls)
+            cls._tls.instance._initialized = False
+        return cls._tls.instance  # type: ignore
 
-    def __init__(self):
-        if self._initialized:
+    def __init__(self) -> None:
+        if getattr(self, "_initialized", False):
             return
         self._events: List[AuditEvent] = []
         self._current_group: Optional[str] = None
         self._figures: List[Dict[str, Any]] = []  # {"name": str, "base64": str}
         self._metrics: Dict[str, Any] = {}
         self._initialized = True
+        self._lock = threading.Lock()
 
     # ── Logging ──────────────────────────────────────────────
 
@@ -127,8 +129,8 @@ class AuditLogger:
         rationale: str,
         column: Optional[str] = None,
         details: Optional[Dict[str, Any]] = None,
-        before_shape: Optional[tuple] = None,
-        after_shape: Optional[tuple] = None,
+        before_shape: Optional[Tuple[int, ...]] = None,
+        after_shape: Optional[Tuple[int, ...]] = None,
     ) -> None:
         """
         Record a single decision event.
@@ -139,7 +141,7 @@ class AuditLogger:
         action     : Short verb, e.g. "impute", "drop_column", "scale"
         rationale  : Human-readable explanation of WHY this was done
         column     : Column name affected (if applicable)
-        details    : Dict of parameters / values (e.g. {"strategy": "median"})
+        details    : Dict[str, Any] of parameters / values (e.g. {"strategy": "median"})
         before_shape : DataFrame shape before the operation
         after_shape  : DataFrame shape after the operation
         """
@@ -155,9 +157,26 @@ class AuditLogger:
         )
         with self._lock:
             self._events.append(event)
+            
+        current_span = trace.get_current_span()
+        if current_span and current_span.is_recording():
+            attributes = {
+                "auditflow.module": module,
+                "auditflow.action": action,
+                "auditflow.rationale": rationale,
+            }
+            if column:
+                attributes["auditflow.column"] = column
+            if details:
+                attributes["auditflow.details"] = json.dumps(details, default=str)
+            if before_shape:
+                attributes["auditflow.before_shape"] = str(before_shape)
+            if after_shape:
+                attributes["auditflow.after_shape"] = str(after_shape)
+            current_span.add_event("AuditDecision", attributes=attributes)
 
     @contextmanager
-    def track(self, group_name: str):
+    def track(self, group_name: str) -> Iterator["AuditLogger"]:
         """
         Context manager to group related decisions under a label.
 
@@ -174,15 +193,17 @@ class AuditLogger:
             action="begin_group",
             rationale=f"Starting pipeline stage: {group_name}",
         )
-        try:
-            yield self
-        finally:
-            self.log_decision(
-                module="core.logger",
-                action="end_group",
-                rationale=f"Completed pipeline stage: {group_name}",
-            )
-            self._current_group = previous_group
+        with tracer.start_as_current_span(f"AuditFlow.track: {group_name}") as span:
+            span.set_attribute("auditflow.group_name", group_name)
+            try:
+                yield self
+            finally:
+                self.log_decision(
+                    module="core.logger",
+                    action="end_group",
+                    rationale=f"Completed pipeline stage: {group_name}",
+                )
+                self._current_group = previous_group
 
     # ── Figure & Metric Storage ──────────────────────────────
 
@@ -262,8 +283,11 @@ class AuditLogger:
         str — the output file path
         """
         from auditflow.core.report import ReportGenerator
+
         generator = ReportGenerator(self)
-        return generator.generate(output_path, title=title, show_audit_trail=show_audit_trail)
+        return generator.generate(
+            output_path, title=title, show_audit_trail=show_audit_trail
+        )
 
     def summary(self) -> str:
         """Print a human-readable summary of the audit trail."""
@@ -277,7 +301,7 @@ class AuditLogger:
         ]
 
         # Group events
-        groups = {}
+        groups: Dict[str, List[AuditEvent]] = {}
         ungrouped = []
         for event in self._events:
             if event.action in ("begin_group", "end_group"):
@@ -313,11 +337,10 @@ class AuditLogger:
 
     @classmethod
     def reset_instance(cls) -> None:
-        """Destroy the singleton instance. Used in tests."""
-        with cls._lock:
-            if cls._instance is not None:
-                cls._instance._initialized = False
-                cls._instance = None
+        """Destroy the singleton instance for the current thread. Used in tests."""
+        if hasattr(cls._tls, "instance"):
+            cls._tls.instance._initialized = False
+            del cls._tls.instance
 
 
 def get_logger() -> AuditLogger:

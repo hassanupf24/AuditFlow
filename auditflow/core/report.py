@@ -372,9 +372,7 @@ class ReportGenerator:
             d = e.to_dict()
             if d.get("details"):
                 # Format details as key=value pairs
-                detail_str = " · ".join(
-                    f"{k}={v}" for k, v in d["details"].items()
-                )
+                detail_str = " · ".join(f"{k}={v}" for k, v in d["details"].items())
                 d["details"] = detail_str
             else:
                 d["details"] = None
@@ -384,15 +382,13 @@ class ReportGenerator:
             title=title,
             version="0.1.0",
             generated_at=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
-            total_events=len([
-                e for e in events
-                if e.action not in ("begin_group", "end_group")
-            ]),
+            total_events=len(
+                [e for e in events if e.action not in ("begin_group", "end_group")]
+            ),
             total_figures=len(figures),
             total_groups=len(groups),
             total_metrics=sum(
-                len(v) if isinstance(v, dict) else 1
-                for v in metrics.values()
+                len(v) if isinstance(v, dict) else 1 for v in metrics.values()
             ),
             metrics=metrics,
             figures=figures,
@@ -408,7 +404,7 @@ class ReportGenerator:
             module="core.report",
             action="generate_report",
             rationale=f"Generated HTML report with {len(event_dicts)} events, "
-                      f"{len(figures)} figures at: {out.absolute()}",
+            f"{len(figures)} figures at: {out.absolute()}",
         )
 
         return str(out.absolute())

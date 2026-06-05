@@ -14,7 +14,7 @@ import base64
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 
 from sklearn.inspection import permutation_importance
 
@@ -37,7 +37,7 @@ def explain_model(
     Parameters
     ----------
     model         : Fitted sklearn estimator.
-    feature_names : List of feature names.
+    feature_names : List[Any] of feature names.
     X_test        : Test features (required for permutation importance).
     y_test        : Test labels (required for permutation importance).
     top_n         : Number of top features to return.
@@ -54,11 +54,15 @@ def explain_model(
     elif hasattr(model, "coef_"):
         importances = np.abs(model.coef_).flatten()
         if len(importances) != len(feature_names):
-            importances = importances[:len(feature_names)]
+            importances = importances[: len(feature_names)]
         method = "coefficient magnitude"
     elif X_test is not None and y_test is not None:
         perm_result = permutation_importance(
-            model, X_test, y_test, n_repeats=10, random_state=42,
+            model,
+            X_test,
+            y_test,
+            n_repeats=10,
+            random_state=42,
         )
         importances = perm_result.importances_mean
         method = "permutation importance"
@@ -67,15 +71,21 @@ def explain_model(
             module="models.explainer",
             action="explain_skipped",
             rationale="Could not extract feature importance: model has no "
-                      "feature_importances_ or coef_, and no test set provided "
-                      "for permutation importance.",
+            "feature_importances_ or coef_, and no test set provided "
+            "for permutation importance.",
         )
         return pd.DataFrame(columns=["feature", "importance"])
 
-    importance_df = pd.DataFrame({
-        "feature": feature_names[:len(importances)],
-        "importance": importances,
-    }).sort_values("importance", ascending=False).head(top_n)
+    importance_df = (
+        pd.DataFrame(
+            {
+                "feature": feature_names[: len(importances)],
+                "importance": importances,
+            }
+        )
+        .sort_values("importance", ascending=False)
+        .head(top_n)
+    )
 
     top_features = importance_df.head(5)["feature"].tolist()
 
@@ -83,8 +93,8 @@ def explain_model(
         module="models.explainer",
         action="explain_model",
         rationale=f"Extracted feature importance using {method}. "
-                  f"Top 5 features: {top_features}. These features contribute "
-                  f"most to the model's predictions.",
+        f"Top 5 features: {top_features}. These features contribute "
+        f"most to the model's predictions.",
         details={
             "method": method,
             "top_features": importance_df.head(10).to_dict(orient="records"),
@@ -99,7 +109,7 @@ def plot_feature_importance(
     title: str = "Feature Importance",
     top_n: int = 15,
     save_path: Optional[str] = None,
-) -> plt.Figure:
+) -> Any:
     """
     Horizontal bar chart of feature importance, auto-stored in the report.
     """
@@ -108,7 +118,7 @@ def plot_feature_importance(
 
     fig, ax = plt.subplots(figsize=(8, max(4, len(data) * 0.35)))
 
-    colors = plt.cm.RdYlBu_r(np.linspace(0.2, 0.8, len(data)))
+    colors = plt.cm.RdYlBu(np.linspace(0.2, 0.8, len(data)))  # type: ignore
     ax.barh(data["feature"], data["importance"], color=colors)
     ax.set_xlabel("Importance")
     ax.set_title(title, fontweight="bold", fontsize=13)

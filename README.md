@@ -12,12 +12,17 @@
 - **Robust Data Cleaning:** Built-in modular cleaners to handle missing values, outliers, and text preprocessing.
 - **Machine Learning Ready:** Seamlessly integrates with scikit-learn for modeling and model evaluation.
 - **Professional Reporting:** Auto-generates clean, readable reports using Jinja2 templates.
+- **Observability & Tracing:** OpenTelemetry integration captures precise bottlenecks and execution details across distributed services.
+- **Robust State Management:** Redis-backed caching ensures real-time progress updates for long-running pipeline jobs.
+- **Enterprise Security:** Automated CI/CD vulnerability and secret scanning (Bandit, TruffleHog).
 
 ## 💻 Tech Stack
 - **Core Data Handling:** Python, Pandas, NumPy
 - **Data Visualization:** Matplotlib, Seaborn
 - **Machine Learning:** scikit-learn
-- **Utilities:** PyYAML, Jinja2, Requests, OpenPyXL
+- **Observability & Caching:** OpenTelemetry, Redis
+- **Security & CI/CD:** Bandit, TruffleHog, GitHub Actions
+- **Utilities:** PyYAML, Jinja2, Requests, OpenPyXL, Pydantic
 
 ## 📦 Getting Started
 To get started with AuditFlow locally:

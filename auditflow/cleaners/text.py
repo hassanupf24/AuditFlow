@@ -3,9 +3,8 @@
 # Text normalization pipeline with audit trail
 # ============================================================
 
-import re
 import pandas as pd
-from typing import Dict, List, Optional
+from typing import List
 
 from auditflow.core.logger import get_logger
 
@@ -84,7 +83,7 @@ def clean_text(
             action="clean_text",
             column=col,
             rationale=f"Applied {len(steps_applied)} text cleaning steps to '{col}': "
-                      f"{', '.join(steps_applied)}.",
+            f"{', '.join(steps_applied)}.",
             details={
                 "steps": steps_applied,
                 "sample_before": original_sample[:2],

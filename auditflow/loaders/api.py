@@ -5,16 +5,16 @@
 
 import requests
 import pandas as pd
-from typing import Dict, Optional
+from typing import Any, Tuple, Optional, Dict, Optional
 
 from auditflow.core.logger import get_logger
 
 
 def load_from_api(
     url: str,
-    params: Optional[Dict] = None,
-    headers: Optional[Dict] = None,
-    auth: Optional[tuple] = None,
+    params: Optional[Dict[str, Any]] = None,
+    headers: Optional[Dict[str, Any]] = None,
+    auth: Optional[Tuple[Any, ...]] = None,
     data_key: Optional[str] = None,
     timeout: int = 30,
 ) -> pd.DataFrame:
@@ -37,8 +37,11 @@ def load_from_api(
     audit = get_logger()
 
     response = requests.get(
-        url, params=params, headers=headers,
-        auth=auth, timeout=timeout,
+        url,
+        params=params,
+        headers=headers,
+        auth=auth,
+        timeout=timeout,
     )
     response.raise_for_status()
     raw = response.json()
@@ -50,8 +53,8 @@ def load_from_api(
         module="loaders.api",
         action="load_from_api",
         rationale=f"Fetched data from API: {url}. "
-                  f"Response status: {response.status_code}. "
-                  f"Shape: {df.shape[0]} rows × {df.shape[1]} columns.",
+        f"Response status: {response.status_code}. "
+        f"Shape: {df.shape[0]} rows × {df.shape[1]} columns.",
         details={
             "url": url,
             "status_code": response.status_code,

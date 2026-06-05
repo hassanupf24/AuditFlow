@@ -48,8 +48,8 @@ def load_csv(
         module="loaders.tabular",
         action="load_csv",
         rationale=f"Loaded CSV from '{filepath}'. "
-                  f"Shape: {df.shape[0]} rows × {df.shape[1]} columns. "
-                  f"Columns: {list(df.columns)}.",
+        f"Shape: {df.shape[0]} rows × {df.shape[1]} columns. "
+        f"Columns: {list(df.columns)}.",
         details={
             "filepath": filepath,
             "rows": df.shape[0],
@@ -90,7 +90,7 @@ def load_excel(
         module="loaders.tabular",
         action="load_excel",
         rationale=f"Loaded Excel sheet '{sheet_name}' from '{filepath}'. "
-                  f"Shape: {df.shape[0]} rows × {df.shape[1]} columns.",
+        f"Shape: {df.shape[0]} rows × {df.shape[1]} columns.",
         details={
             "filepath": filepath,
             "sheet_name": str(sheet_name),
@@ -126,7 +126,7 @@ def load_parquet(filepath: str) -> pd.DataFrame:
         module="loaders.tabular",
         action="load_parquet",
         rationale=f"Loaded Parquet from '{filepath}'. "
-                  f"Shape: {df.shape[0]} rows × {df.shape[1]} columns.",
+        f"Shape: {df.shape[0]} rows × {df.shape[1]} columns.",
         details={
             "filepath": filepath,
             "rows": df.shape[0],

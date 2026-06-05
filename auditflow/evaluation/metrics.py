@@ -9,12 +9,19 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from typing import Any, Dict, List, Optional
+from typing import Any, Tuple, Optional, Dict, List, Optional
 
 from sklearn.metrics import (
-    accuracy_score, precision_score, recall_score, f1_score,
-    roc_auc_score, roc_curve, confusion_matrix, classification_report,
-    mean_absolute_error, mean_squared_error, r2_score,
+    accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score,
+    roc_auc_score,
+    roc_curve,
+    confusion_matrix,
+    mean_absolute_error,
+    mean_squared_error,
+    r2_score,
 )
 
 from auditflow.core.logger import get_logger
@@ -24,7 +31,7 @@ def evaluate_classification(
     y_true: pd.Series,
     y_pred: np.ndarray,
     y_prob: Optional[np.ndarray] = None,
-    labels: Optional[List] = None,
+    labels: Optional[List[Any]] = None,
 ) -> Dict[str, float]:
     """
     Compute all classification metrics with audit trail.
@@ -45,7 +52,9 @@ def evaluate_classification(
 
     metrics = {
         "accuracy": round(accuracy_score(y_true, y_pred), 4),
-        "precision": round(precision_score(y_true, y_pred, average=avg, zero_division=0), 4),
+        "precision": round(
+            precision_score(y_true, y_pred, average=avg, zero_division=0), 4
+        ),
         "recall": round(recall_score(y_true, y_pred, average=avg, zero_division=0), 4),
         "f1_score": round(f1_score(y_true, y_pred, average=avg, zero_division=0), 4),
     }
@@ -57,7 +66,10 @@ def evaluate_classification(
                 metrics["roc_auc"] = round(roc_auc_score(y_true, probs), 4)
             else:
                 metrics["roc_auc"] = round(
-                    roc_auc_score(y_true, y_prob, multi_class="ovr", average="weighted"), 4
+                    roc_auc_score(
+                        y_true, y_prob, multi_class="ovr", average="weighted"
+                    ),
+                    4,
                 )
         except (ValueError, IndexError):
             pass
@@ -77,10 +89,10 @@ def evaluate_classification(
         module="evaluation.metrics",
         action="evaluate_classification",
         rationale=f"Classification evaluation: F1={f1:.4f} ({quality}). "
-                  f"Accuracy={metrics['accuracy']:.4f}, "
-                  f"Precision={metrics['precision']:.4f}, "
-                  f"Recall={metrics['recall']:.4f}."
-                  f"{' ROC-AUC=' + str(metrics.get('roc_auc', 'N/A')) if 'roc_auc' in metrics else ''}",
+        f"Accuracy={metrics['accuracy']:.4f}, "
+        f"Precision={metrics['precision']:.4f}, "
+        f"Recall={metrics['recall']:.4f}."
+        f"{' ROC-AUC=' + str(metrics.get('roc_auc', 'N/A')) if 'roc_auc' in metrics else ''}",
         details=metrics,
     )
 
@@ -100,20 +112,22 @@ def evaluate_regression(
         "r2": round(r2_score(y_true, y_pred), 4),
         "mae": round(mean_absolute_error(y_true, y_pred), 4),
         "rmse": round(np.sqrt(mean_squared_error(y_true, y_pred)), 4),
-        "mape": round(
-            np.mean(np.abs((y_true - y_pred) / (y_true + 1e-9))) * 100, 2
-        ),
+        "mape": round(np.mean(np.abs((y_true - y_pred) / (y_true + 1e-9))) * 100, 2),
     }
 
     r2 = metrics["r2"]
-    quality = "Excellent" if r2 >= 0.9 else "Good" if r2 >= 0.7 else "Fair" if r2 >= 0.5 else "Poor"
+    quality = (
+        "Excellent"
+        if r2 >= 0.9
+        else "Good" if r2 >= 0.7 else "Fair" if r2 >= 0.5 else "Poor"
+    )
 
     audit.log_decision(
         module="evaluation.metrics",
         action="evaluate_regression",
         rationale=f"Regression evaluation: R²={r2:.4f} ({quality}). "
-                  f"MAE={metrics['mae']:.4f}, RMSE={metrics['rmse']:.4f}, "
-                  f"MAPE={metrics['mape']:.2f}%.",
+        f"MAE={metrics['mae']:.4f}, RMSE={metrics['rmse']:.4f}, "
+        f"MAPE={metrics['mape']:.2f}%.",
         details=metrics,
     )
 
@@ -123,10 +137,10 @@ def evaluate_regression(
 def plot_confusion_matrix(
     y_true: pd.Series,
     y_pred: np.ndarray,
-    labels: Optional[List] = None,
+    labels: Optional[List[Any]] = None,
     title: str = "Confusion Matrix",
     save_path: Optional[str] = None,
-) -> plt.Figure:
+) -> 'Any':
     """
     Plot an annotated confusion matrix, auto-stored in the report.
     """
@@ -136,8 +150,12 @@ def plot_confusion_matrix(
 
     fig, ax = plt.subplots(figsize=(6, 5))
     sns.heatmap(
-        cm, annot=True, fmt="d", cmap="Blues",
-        xticklabels=display_labels, yticklabels=display_labels,
+        cm,
+        annot=True,
+        fmt="d",
+        cmap="Blues",
+        xticklabels=display_labels,
+        yticklabels=display_labels,
         ax=ax,
     )
     ax.set_xlabel("Predicted")
@@ -161,7 +179,7 @@ def plot_roc_curve(
     y_prob: np.ndarray,
     title: str = "ROC Curve",
     save_path: Optional[str] = None,
-) -> plt.Figure:
+) -> 'Any':
     """
     Plot ROC curve for binary classification, auto-stored in the report.
     """

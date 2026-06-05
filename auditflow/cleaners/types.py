@@ -3,9 +3,8 @@
 # Smart type inference & casting with audit trail
 # ============================================================
 
-import numpy as np
 import pandas as pd
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from auditflow.core.logger import get_logger
 
@@ -33,7 +32,9 @@ def auto_cast(df: pd.DataFrame) -> pd.DataFrame:
         original_dtype = str(df[col].dtype)
 
         # Skip already-typed numeric/datetime columns
-        if pd.api.types.is_numeric_dtype(df[col]) or pd.api.types.is_datetime64_any_dtype(df[col]):
+        if pd.api.types.is_numeric_dtype(
+            df[col]
+        ) or pd.api.types.is_datetime64_any_dtype(df[col]):
             continue
 
         series = df[col].dropna()
@@ -50,42 +51,64 @@ def auto_cast(df: pd.DataFrame) -> pd.DataFrame:
                 action="auto_cast_numeric",
                 column=col,
                 rationale=f"Column '{col}' contains >90% parseable numeric values. "
-                          f"Cast from {original_dtype} → {new_dtype}.",
+                f"Cast from {original_dtype} → {new_dtype}.",
                 details={"from": original_dtype, "to": new_dtype},
             )
             continue
 
         # Try datetime conversion
         try:
-            date_sample = pd.to_datetime(series.head(100), errors="coerce", infer_datetime_format=True)
+            date_sample = pd.to_datetime(
+                series.head(100), errors="coerce", infer_datetime_format=True
+            )
             if date_sample.notna().mean() > 0.8:
-                df[col] = pd.to_datetime(df[col], errors="coerce", infer_datetime_format=True)
+                df[col] = pd.to_datetime(
+                    df[col], errors="coerce", infer_datetime_format=True
+                )
                 audit.log_decision(
                     module="cleaners.types",
                     action="auto_cast_datetime",
                     column=col,
                     rationale=f"Column '{col}' contains date-like strings. "
-                              f"Cast from {original_dtype} → datetime64.",
+                    f"Cast from {original_dtype} → datetime64.",
                     details={"from": original_dtype, "to": "datetime64"},
                 )
                 continue
-        except Exception:
-            pass
-
+        except Exception as e:
+            audit.log_decision(
+                module="cleaners.types",
+                action="auto_cast_datetime_failed",
+                column=col,
+                rationale=f"Failed to auto-cast column '{col}' to datetime: {e}",
+            )
         # Try boolean detection
         unique_lower = set(series.astype(str).str.strip().str.lower().unique())
         bool_values = {"true", "false", "yes", "no", "1", "0", "t", "f", "y", "n"}
         if unique_lower.issubset(bool_values) and len(unique_lower) <= 4:
-            bool_map = {"true": True, "yes": True, "1": True, "t": True, "y": True,
-                        "false": False, "no": False, "0": False, "f": False, "n": False}
+            bool_map = {
+                "true": True,
+                "yes": True,
+                "1": True,
+                "t": True,
+                "y": True,
+                "false": False,
+                "no": False,
+                "0": False,
+                "f": False,
+                "n": False,
+            }
             df[col] = df[col].astype(str).str.strip().str.lower().map(bool_map)
             audit.log_decision(
                 module="cleaners.types",
                 action="auto_cast_boolean",
                 column=col,
                 rationale=f"Column '{col}' contains only boolean-like values "
-                          f"({unique_lower}). Cast to bool.",
-                details={"from": original_dtype, "to": "bool", "unique_values": list(unique_lower)},
+                f"({unique_lower}). Cast to bool.",
+                details={
+                    "from": original_dtype,
+                    "to": "bool",
+                    "unique_values": list(unique_lower),
+                },
             )
             continue
 
@@ -99,8 +122,12 @@ def auto_cast(df: pd.DataFrame) -> pd.DataFrame:
                 action="auto_cast_category",
                 column=col,
                 rationale=f"Column '{col}' has low cardinality ({n_unique} unique values, "
-                          f"{cardinality_ratio:.1%} of rows). Cast to category for memory efficiency.",
-                details={"from": original_dtype, "to": "category", "n_unique": n_unique},
+                f"{cardinality_ratio:.1%} of rows). Cast to category for memory efficiency.",
+                details={
+                    "from": original_dtype,
+                    "to": "category",
+                    "n_unique": n_unique,
+                },
             )
 
     return df
@@ -137,7 +164,7 @@ def cast_columns(
     ]
 
     for cols, target_dtype, label in casts:
-        for col in (cols or []):
+        for col in cols or []:
             if col not in df.columns:
                 continue
             original = str(df[col].dtype)
@@ -164,7 +191,7 @@ def cast_columns(
                     details={"from": original, "to": target_dtype, "error": str(e)},
                 )
 
-    for col in (date_cols or []):
+    for col in date_cols or []:
         if col not in df.columns:
             continue
         original = str(df[col].dtype)
@@ -174,8 +201,12 @@ def cast_columns(
             action="cast_datetime",
             column=col,
             rationale=f"Parsed '{col}' as datetime "
-                      f"(format={'inferred' if not date_format else date_format}).",
-            details={"from": original, "to": "datetime64", "format": date_format or "inferred"},
+            f"(format={'inferred' if not date_format else date_format}).",
+            details={
+                "from": original,
+                "to": "datetime64",
+                "format": date_format or "inferred",
+            },
         )
 
     return df

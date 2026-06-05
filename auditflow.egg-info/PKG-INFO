@@ -21,6 +21,7 @@ Classifier: Topic :: Scientific/Engineering :: Artificial Intelligence
 Classifier: Topic :: Scientific/Engineering :: Information Analysis
 Requires-Python: >=3.9
 Description-Content-Type: text/markdown
+License-File: LICENSE
 Requires-Dist: pandas>=1.5
 Requires-Dist: numpy>=1.23
 Requires-Dist: matplotlib>=3.6
@@ -30,6 +31,9 @@ Requires-Dist: pyyaml>=6.0
 Requires-Dist: jinja2>=3.1
 Requires-Dist: requests>=2.28
 Requires-Dist: openpyxl>=3.0
+Requires-Dist: fastapi>=0.100
+Requires-Dist: uvicorn>=0.23
+Requires-Dist: pydantic>=2.0
 Provides-Extra: nlp
 Requires-Dist: sentence-transformers>=2.2; extra == "nlp"
 Provides-Extra: images
@@ -40,138 +44,63 @@ Requires-Dist: Pillow>=9.0; extra == "all"
 Provides-Extra: dev
 Requires-Dist: pytest>=7.0; extra == "dev"
 Requires-Dist: pytest-cov>=4.0; extra == "dev"
+Requires-Dist: mypy>=1.0; extra == "dev"
+Requires-Dist: black>=23.0; extra == "dev"
+Requires-Dist: ruff>=0.0.280; extra == "dev"
+Dynamic: license-file
 
-# 🔍 AuditFlow
+# AuditFlow 📊
 
-### A Self-Documenting Python Data Analysis Framework
+> **A self-documenting Python data analysis framework.**
+> Every pipeline step logs *why*, tracks *what* changed, and auto-generates professional reports.
 
-> **AuditFlow doesn't just process your data — it documents *why*, tracks *what changed*, and generates professional reports automatically.**
+## 🚀 About the Project
+**AuditFlow** is a comprehensive Python framework built for Data Analysts and Data Scientists who value reproducibility and transparency. It streamlines exploratory data analysis (EDA), data cleaning, feature engineering, and modeling, while automatically maintaining an audit trail of every operation performed. This ensures that your entire data pipeline is transparent, reproducible, and ready for stakeholder review.
 
----
+### Key Features
+- **Self-Documenting Pipelines:** Automatically logs the context and impact of every data transformation.
+- **Automated EDA & Profiling:** Quickly generate visual insights and comprehensive statistical summaries.
+- **Robust Data Cleaning:** Built-in modular cleaners to handle missing values, outliers, and text preprocessing.
+- **Machine Learning Ready:** Seamlessly integrates with scikit-learn for modeling and model evaluation.
+- **Professional Reporting:** Auto-generates clean, readable reports using Jinja2 templates.
 
-## ✨ What Makes AuditFlow Different?
+## 💻 Tech Stack
+- **Core Data Handling:** Python, Pandas, NumPy
+- **Data Visualization:** Matplotlib, Seaborn
+- **Machine Learning:** scikit-learn
+- **Utilities:** PyYAML, Jinja2, Requests, OpenPyXL
 
-Most data analysis libraries help you clean and model data. AuditFlow does that too — but it also produces a **complete audit trail** of every decision made during your analysis, and bundles it into a professional HTML report.
-
-| Feature | pandas / sklearn | AuditFlow |
-|---|---|---|
-| Data cleaning functions | ✅ | ✅ |
-| Auto-EDA with visualizations | ❌ | ✅ |
-| **Decision logging** ("why median over mean?") | ❌ | ✅ |
-| **Before/after snapshots** at every step | ❌ | ✅ |
-| **Auto-generated HTML reports** | ❌ | ✅ |
-| **Smart defaults** based on data profiling | ❌ | ✅ |
-| **Config-driven YAML pipelines** | ❌ | ✅ |
-
----
-
-## 📦 Installation
-
-```bash
-# Core install
-pip install -e .
-
-# With NLP support (sentence-transformers)
-pip install -e ".[nlp]"
-
-# Everything
-pip install -e ".[all]"
-```
-
----
-
-## 🚀 Quick Start
-
-### Option 1 — Python API
-
-```python
-from auditflow import Pipeline
-
-# Run a full analysis pipeline
-result = Pipeline.from_yaml("config.yaml").run()
-
-# Or build step by step
-from auditflow.loaders import load_csv
-from auditflow.cleaners import impute, handle_outliers
-from auditflow.eda import profile
-from auditflow.models import ModelTrainer
-from auditflow.core import AuditLogger
-
-audit = AuditLogger()
-
-df = load_csv("data/sales.csv")
-df = impute(df, strategy="auto")        # Auto-selects median vs mean vs KNN
-df = handle_outliers(df, method="clip")
-
-report = profile(df)                     # Statistical profiling + smart alerts
-trainer = ModelTrainer(task="classification")
-result = trainer.train(df, target="churn", models=["rf", "gbm", "logistic"])
-
-# Generate a full HTML report with audit trail
-audit.generate_report("analysis_report.html")
-```
-
-### Option 2 — YAML Config (Zero Code)
-
-```yaml
-# config.yaml
-data:
-  source: "data/sales.csv"
-  date_columns: ["order_date"]
-
-cleaning:
-  missing: {strategy: "auto"}
-  outliers: {method: "clip", multiplier: 1.5}
-
-features:
-  datetime_expand: ["order_date"]
-  interactions: [["price", "quantity"]]
-
-model:
-  task: "classification"
-  target: "churn"
-  models: ["rf", "gbm", "logistic"]
-  cv_folds: 5
-
-report:
-  output: "analysis_report.html"
-  include_audit_trail: true
-```
-
-```python
-from auditflow import Pipeline
-Pipeline.from_yaml("config.yaml").run()
-```
-
----
-
-## 📁 Architecture
-
-```
-auditflow/
-├── core/          # Audit logger, config, report generator, registry
-├── loaders/       # CSV, Excel, API, text corpus loaders
-├── cleaners/      # Missing values, outliers, type casting, text cleaning
-├── eda/           # Statistical profiler, auto-visualizations
-├── features/      # Numeric, temporal, text feature engineering
-├── models/        # Classical ML models with explainability
-├── evaluation/    # Metrics, confusion matrix, ROC curves
-├── pipeline/      # Config-driven orchestration, audit trail
-├── examples/      # Real-world walkthroughs (Titanic, etc.)
-└── tests/         # pytest test suite
-```
-
----
-
-## 🧪 Running Tests
+## 📦 Getting Started
+To get started with AuditFlow locally:
 
 ```bash
-pip install -e ".[dev]"
-pytest tests/ -v
+# Clone the repository
+git clone https://github.com/hassanupf24/AuditFlow.git
+cd AuditFlow
+
+# Install the package and dependencies
+pip install .
+
+# For development (includes pytest)
+pip install .[dev]
 ```
 
+## 👨‍💻 About the Author: Hassan Gasim
+**Data Analyst**
+
+Hello! I am a passionate Data Analyst dedicated to transforming complex data into actionable insights. I specialize in data visualization, statistical analysis, and building data-driven solutions like **AuditFlow** to solve real-world problems.
+
+### 📫 Connect with me
+- **Email:** [Hassan.gasim.data@gmail.com](mailto:Hassan.gasim.data@gmail.com) | [hassanupf2@gmail.com](mailto:hassanupf2@gmail.com)
+- **LinkedIn:** [Hassan Gasim](https://www.linkedin.com/in/hassan-gasim-b05377108)
+- **GitHub:** [hassanupf24](https://github.com/hassanupf24)
+- **Kaggle:** [hassangasem](https://kaggle.com/hassangasem)
+
+### 🛠️ Personal Skills & Tools
+- **Languages:** Python, SQL, R
+- **Data Visualization:** Tableau, Power BI, Matplotlib, Seaborn
+- **Data Manipulation:** Pandas, NumPy, Excel
+- **Databases:** MySQL, PostgreSQL, SQL Server
+
 ---
-
-## 📄 License
-
-MIT
+*Built with ❤️ by Hassan Gasim*

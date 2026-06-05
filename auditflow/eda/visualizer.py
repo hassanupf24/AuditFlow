@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from typing import List, Optional
+from typing import Any, Tuple, Optional, Tuple, List, Optional
 
 from auditflow.core.logger import get_logger
 
@@ -19,7 +19,7 @@ plt.rcParams["figure.dpi"] = 110
 plt.rcParams["savefig.bbox"] = "tight"
 
 
-def _fig_to_base64(fig: plt.Figure) -> str:
+def _fig_to_base64(fig: Any) -> str:
     """Convert a matplotlib figure to a base64-encoded PNG string."""
     buf = io.BytesIO()
     fig.savefig(buf, format="png", bbox_inches="tight", dpi=110)
@@ -27,7 +27,7 @@ def _fig_to_base64(fig: plt.Figure) -> str:
     return base64.b64encode(buf.read()).decode("utf-8")
 
 
-def _store_figure(fig: plt.Figure, name: str) -> None:
+def _store_figure(fig: Any, name: str) -> None:
     """Store a figure in the audit logger for the HTML report."""
     audit = get_logger()
     b64 = _fig_to_base64(fig)
@@ -43,7 +43,7 @@ def plot_distributions(
     n_cols: int = 3,
     kde: bool = True,
     save_path: Optional[str] = None,
-) -> plt.Figure:
+) -> 'Any':
     """
     KDE + histogram grid for all numeric columns.
     Auto-stored in the audit logger for the HTML report.
@@ -62,8 +62,20 @@ def plot_distributions(
         sns.histplot(df[col].dropna(), kde=kde, ax=axes[i], color="#4C72B0")
         mean_val = df[col].mean()
         median_val = df[col].median()
-        axes[i].axvline(mean_val, color="red", linestyle="--", linewidth=1, label=f"Mean: {mean_val:.1f}")
-        axes[i].axvline(median_val, color="orange", linestyle="--", linewidth=1, label=f"Median: {median_val:.1f}")
+        axes[i].axvline(
+            mean_val,
+            color="red",
+            linestyle="--",
+            linewidth=1,
+            label=f"Mean: {mean_val:.1f}",
+        )
+        axes[i].axvline(
+            median_val,
+            color="orange",
+            linestyle="--",
+            linewidth=1,
+            label=f"Median: {median_val:.1f}",
+        )
         axes[i].set_title(col, fontweight="bold")
         axes[i].set_xlabel("")
         axes[i].legend(fontsize=7)
@@ -71,7 +83,9 @@ def plot_distributions(
     for j in range(i + 1, len(axes)):
         axes[j].set_visible(False)
 
-    fig.suptitle("Numeric Feature Distributions", fontsize=14, fontweight="bold", y=1.01)
+    fig.suptitle(
+        "Numeric Feature Distributions", fontsize=14, fontweight="bold", y=1.01
+    )
     plt.tight_layout()
     _store_figure(fig, "Numeric Distributions")
     if save_path:
@@ -85,9 +99,9 @@ def plot_distributions(
 def plot_correlations(
     df: pd.DataFrame,
     method: str = "pearson",
-    figsize: tuple = (10, 8),
+    figsize: Tuple[Any, ...] = (10, 8),
     save_path: Optional[str] = None,
-) -> plt.Figure:
+) -> 'Any':
     """
     Annotated correlation heatmap (lower triangle).
     """
@@ -99,11 +113,21 @@ def plot_correlations(
     mask = np.triu(np.ones_like(corr, dtype=bool))
 
     fig, ax = plt.subplots(figsize=figsize)
-    sns.heatmap(corr, mask=mask, annot=True, fmt=".2f",
-                cmap="RdBu_r", center=0, vmin=-1, vmax=1,
-                linewidths=0.5, ax=ax)
-    ax.set_title(f"Correlation Matrix ({method.capitalize()})",
-                 fontweight="bold", fontsize=13)
+    sns.heatmap(
+        corr,
+        mask=mask,
+        annot=True,
+        fmt=".2f",
+        cmap="RdBu_r",
+        center=0,
+        vmin=-1,
+        vmax=1,
+        linewidths=0.5,
+        ax=ax,
+    )
+    ax.set_title(
+        f"Correlation Matrix ({method.capitalize()})", fontweight="bold", fontsize=13
+    )
     plt.tight_layout()
     _store_figure(fig, f"Correlation Heatmap ({method})")
     if save_path:
@@ -120,7 +144,7 @@ def plot_categoricals(
     top_n: int = 15,
     n_cols: int = 2,
     save_path: Optional[str] = None,
-) -> plt.Figure:
+) -> 'Any':
     """
     Horizontal bar chart of value counts for each categorical column.
     """
@@ -144,7 +168,9 @@ def plot_categoricals(
     for j in range(i + 1, len(axes)):
         axes[j].set_visible(False)
 
-    fig.suptitle("Categorical Feature Distributions", fontsize=14, fontweight="bold", y=1.01)
+    fig.suptitle(
+        "Categorical Feature Distributions", fontsize=14, fontweight="bold", y=1.01
+    )
     plt.tight_layout()
     _store_figure(fig, "Categorical Distributions")
     if save_path:
@@ -161,7 +187,7 @@ def plot_target_vs_features(
     feature_cols: Optional[List[str]] = None,
     n_cols: int = 3,
     save_path: Optional[str] = None,
-) -> plt.Figure:
+) -> 'Any':
     """
     Box plots of each numeric feature grouped by the target variable.
     """
@@ -184,7 +210,9 @@ def plot_target_vs_features(
     for j in range(i + 1, len(axes)):
         axes[j].set_visible(False)
 
-    fig.suptitle(f"Features by Target: '{target}'", fontsize=14, fontweight="bold", y=1.01)
+    fig.suptitle(
+        f"Features by Target: '{target}'", fontsize=14, fontweight="bold", y=1.01
+    )
     plt.tight_layout()
     _store_figure(fig, f"Features vs {target}")
     if save_path:
@@ -198,21 +226,29 @@ def plot_target_vs_features(
 def plot_class_balance(
     df: pd.DataFrame,
     target: str,
-    figsize: tuple = (7, 4),
+    figsize: Tuple[Any, ...] = (7, 4),
     save_path: Optional[str] = None,
-) -> plt.Figure:
+) -> 'Any':
     """
     Bar chart with percentage annotations showing class distribution.
     """
     counts = df[target].value_counts()
     fig, ax = plt.subplots(figsize=figsize)
-    bars = ax.bar(counts.index.astype(str), counts.values,
-                  color=sns.color_palette("Set2", len(counts)))
+    bars = ax.bar(
+        counts.index.astype(str),
+        counts.values,
+        color=sns.color_palette("Set2", len(counts)),
+    )
 
     for bar, val in zip(bars, counts.values):
         pct = val / counts.sum() * 100
-        ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 5,
-                f"{pct:.1f}%", ha="center", fontsize=10)
+        ax.text(
+            bar.get_x() + bar.get_width() / 2,
+            bar.get_height() + 5,
+            f"{pct:.1f}%",
+            ha="center",
+            fontsize=10,
+        )
 
     ax.set_title(f"Class Balance — '{target}'", fontweight="bold")
     ax.set_ylabel("Count")
@@ -228,9 +264,9 @@ def plot_class_balance(
 # ─────────────────────────────────────────────
 def plot_missing_map(
     df: pd.DataFrame,
-    figsize: tuple = (14, 5),
+    figsize: Tuple[Any, ...] = (14, 5),
     save_path: Optional[str] = None,
-) -> plt.Figure:
+) -> 'Any':
     """
     Binary heatmap: dark = missing, light = present.
     """
@@ -238,8 +274,7 @@ def plot_missing_map(
         return plt.figure()
 
     fig, ax = plt.subplots(figsize=figsize)
-    sns.heatmap(df.isnull(), cbar=False, yticklabels=False,
-                cmap="viridis", ax=ax)
+    sns.heatmap(df.isnull(), cbar=False, yticklabels=False, cmap="viridis", ax=ax)
     ax.set_title("Missing Data Map (dark = missing)", fontweight="bold")
     ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
     plt.tight_layout()

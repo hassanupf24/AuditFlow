@@ -1,24 +1,55 @@
-# Hassan Gasim
+# AuditFlow 📊
+
+> **A self-documenting Python data analysis framework.**
+> Every pipeline step logs *why*, tracks *what* changed, and auto-generates professional reports.
+
+## 🚀 About the Project
+**AuditFlow** is a comprehensive Python framework built for Data Analysts and Data Scientists who value reproducibility and transparency. It streamlines exploratory data analysis (EDA), data cleaning, feature engineering, and modeling, while automatically maintaining an audit trail of every operation performed. This ensures that your entire data pipeline is transparent, reproducible, and ready for stakeholder review.
+
+### Key Features
+- **Self-Documenting Pipelines:** Automatically logs the context and impact of every data transformation.
+- **Automated EDA & Profiling:** Quickly generate visual insights and comprehensive statistical summaries.
+- **Robust Data Cleaning:** Built-in modular cleaners to handle missing values, outliers, and text preprocessing.
+- **Machine Learning Ready:** Seamlessly integrates with scikit-learn for modeling and model evaluation.
+- **Professional Reporting:** Auto-generates clean, readable reports using Jinja2 templates.
+
+## 💻 Tech Stack
+- **Core Data Handling:** Python, Pandas, NumPy
+- **Data Visualization:** Matplotlib, Seaborn
+- **Machine Learning:** scikit-learn
+- **Utilities:** PyYAML, Jinja2, Requests, OpenPyXL
+
+## 📦 Getting Started
+To get started with AuditFlow locally:
+
+```bash
+# Clone the repository
+git clone https://github.com/hassanupf24/AuditFlow.git
+cd AuditFlow
+
+# Install the package and dependencies
+pip install .
+
+# For development (includes pytest)
+pip install .[dev]
+```
+
+## 👨‍💻 About the Author: Hassan Gasim
 **Data Analyst**
 
-Welcome! I am a passionate Data Analyst dedicated to transforming complex data into actionable insights. I specialize in data visualization, statistical analysis, and building data-driven solutions to solve real-world problems.
+Hello! I am a passionate Data Analyst dedicated to transforming complex data into actionable insights. I specialize in data visualization, statistical analysis, and building data-driven solutions like **AuditFlow** to solve real-world problems.
 
-## 📫 Connect with me
-
+### 📫 Connect with me
 - **Email:** [Hassan.gasim.data@gmail.com](mailto:Hassan.gasim.data@gmail.com) | [hassanupf2@gmail.com](mailto:hassanupf2@gmail.com)
-- **LinkedIn:** [Hassan Gasim](https://www.linkedin.com/in/hassan-gasim-b05377108?utm_source=share_via&utm_content=profile&utm_medium=member_android)
+- **LinkedIn:** [Hassan Gasim](https://www.linkedin.com/in/hassan-gasim-b05377108)
 - **GitHub:** [hassanupf24](https://github.com/hassanupf24)
 - **Kaggle:** [hassangasem](https://kaggle.com/hassangasem)
 
-## 🛠️ Skills & Tools
-*(Update this section with your specific technical skills)*
+### 🛠️ Personal Skills & Tools
 - **Languages:** Python, SQL, R
 - **Data Visualization:** Tableau, Power BI, Matplotlib, Seaborn
 - **Data Manipulation:** Pandas, NumPy, Excel
 - **Databases:** MySQL, PostgreSQL, SQL Server
 
-## 🚀 Featured Projects
-*(Add your key data analysis projects here)*
-
-- **[Project Name 1](Link to project)** - Brief description of the project, the tools used, and the insights gained.
-- **[Project Name 2](Link to project)** - Brief description of the project, the tools used, and the insights gained.
+---
+*Built with ❤️ by Hassan Gasim*

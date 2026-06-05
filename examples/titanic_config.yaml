@@ -1,0 +1,39 @@
+# ============================================================
+# Titanic pipeline config — zero-code analysis with AuditFlow
+# ============================================================
+# Usage:
+#   from auditflow import Pipeline
+#   Pipeline.from_yaml("examples/titanic_config.yaml").run()
+
+data:
+  source: "titanic.csv"
+  format: csv
+
+cleaning:
+  missing:
+    strategy: auto
+  outliers:
+    method: clip
+    multiplier: 1.5
+  drop_high_null_cols: 0.5
+
+features:
+  ohe_cols: []
+  cyclical_encoding: true
+
+model:
+  task: classification
+  target: Survived
+  models:
+    - logistic
+    - rf
+    - gbm
+  cv_folds: 5
+  test_size: 0.2
+  random_state: 42
+
+report:
+  output: titanic_report.html
+  title: "Titanic Survival Analysis — AuditFlow Report"
+  include_audit_trail: true
+  include_figures: true
